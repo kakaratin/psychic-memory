@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crunchyroll Checker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        header {
+            text-align: center;
+            padding: 30px 0;
+        }
+        header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, #f39c12, #e74c3c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        header p {
+            color: #888;
+            margin-top: 10px;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        .card h2 {
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            color: #f39c12;
+        }
+        .upload-zone {
+            border: 2px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+        .upload-zone:hover {
+            border-color: #f39c12;
+            background: rgba(243, 156, 18, 0.1);
+        }
+        .upload-zone.dragover {
+            border-color: #2ecc71;
+            background: rgba(46, 204, 113, 0.1);
+        }
+        .upload-zone input {
+            display: none;
+        }
+        .upload-zone label {
+            cursor: pointer;
+            display: block;
+        }
+        .upload-zone .icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        .setting-group {
+            margin-bottom: 15px;
+        }
+        .setting-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+        .setting-group select,
+        .setting-group input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            font-size: 1rem;
+        }
+        .btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #f39c12, #e74c3c);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(243, 156, 18, 0.3);
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: #fff;
+        }
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .controls {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        .stat-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+        .stat-box .value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-box .label {
+            color: #888;
+            font-size: 0.9rem;
+        }
+        .stat-box.premium .value { color: #2ecc71; }
+        .stat-box.free .value { color: #3498db; }
+        .stat-box.invalid .value { color: #e74c3c; }
+        .stat-box.cpm .value { color: #f39c12; }
+        .progress-bar {
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        .progress-bar .fill {
+            height: 100%;
+            background: linear-gradient(90deg, #f39c12, #2ecc71);
+            border-radius: 5px;
+            transition: width 0.3s;
+        }
+        .log-container {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.85rem;
+        }
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .log-entry.hit { color: #2ecc71; }
+        .log-entry.free { color: #3498db; }
+        .log-entry.invalid { color: #e74c3c; }
+        .log-entry.info { color: #f39c12; }
+        .log-entry.error { color: #e74c3c; }
+        .hits-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .hits-table th,
+        .hits-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .hits-table th {
+            background: rgba(0, 0, 0, 0.3);
+            color: #f39c12;
+            font-weight: 600;
+        }
+        .hits-table tr:hover td {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .download-btns {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+        .status-badge.running {
+            background: rgba(46, 204, 113, 0.2);
+            color: #2ecc71;
+        }
+        .status-badge.stopped {
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+        }
+        .status-badge.idle {
+            background: rgba(255, 255, 255, 0.1);
+            color: #888;
+        }
+        .pulse {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 15px;
+            background: rgba(46, 204, 113, 0.1);
+            border-radius: 8px;
+            color: #2ecc71;
+            margin-top: 10px;
+        }
+        .hidden { display: none !important; }
+        @media (max-width: 768px) {
+            header h1 { font-size: 1.8rem; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Crunchyroll Checker</h1>
+            <p>Premium Account Checker with Proxy Support</p>
+        </header>
+
+        <div class="card">
+            <h2>Upload Files</h2>
+            <div class="upload-zone" id="comboZone">
+                <input type="file" id="comboFile" accept=".txt">
+                <label for="comboFile">
+                    <div class="icon">📄</div>
+                    <div>Drop combo file here or click to upload</div>
+                    <div style="color: #888; font-size: 0.9rem; margin-top: 5px">Format: email:password</div>
+                </label>
+            </div>
+            <div id="comboInfo" class="file-info hidden"></div>
+
+            <div class="upload-zone" id="proxyZone">
+                <input type="file" id="proxyFile" accept=".txt">
+                <label for="proxyFile">
+                    <div class="icon">🔌</div>
+                    <div>Drop proxy file here (optional)</div>
+                    <div style="color: #888; font-size: 0.9rem; margin-top: 5px">Format: ip:port or ip:port:user:pass</div>
+                </label>
+            </div>
+            <div id="proxyInfo" class="file-info hidden"></div>
+        </div>
+
+        <div class="card">
+            <h2>Settings</h2>
+            <div class="settings-grid">
+                <div class="setting-group">
+                    <label>Mode</label>
+                    <select id="mode">
+                        <option value="normal">Normal (with delays)</option>
+                        <option value="brutal">Brutal (no delays)</option>
+                        <option value="ultra">Ultra (fastest)</option>
+                        <option value="turbo" selected>Turbo (multi-thread)</option>
+                    </select>
+                </div>
+                <div class="setting-group">
+                    <label>Threads</label>
+                    <input type="number" id="threads" value="10" min="1" max="200">
+                </div>
+                <div class="setting-group">
+                    <label>Max Retries</label>
+                    <input type="number" id="maxRetries" value="3" min="0" max="10">
+                </div>
+            </div>
+            <div class="controls">
+                <button class="btn btn-primary" id="startBtn" disabled>
+                    <span>Start Checking</span>
+                </button>
+                <button class="btn btn-danger hidden" id="stopBtn">
+                    <span>Stop</span>
+                </button>
+                <div class="status-badge idle" id="statusBadge">
+                    <span class="dot">●</span>
+                    <span class="text">Idle</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Progress</h2>
+            <div class="progress-bar">
+                <div class="fill" id="progressFill" style="width: 0%"></div>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="value" id="statChecked">0</div>
+                    <div class="label">Checked</div>
+                </div>
+                <div class="stat-box premium">
+                    <div class="value" id="statPremium">0</div>
+                    <div class="label">Premium</div>
+                </div>
+                <div class="stat-box free">
+                    <div class="value" id="statFree">0</div>
+                    <div class="label">Free</div>
+                </div>
+                <div class="stat-box invalid">
+                    <div class="value" id="statInvalid">0</div>
+                    <div class="label">Invalid</div>
+                </div>
+                <div class="stat-box cpm">
+                    <div class="value" id="statCpm">0</div>
+                    <div class="label">CPM</div>
+                </div>
+                <div class="stat-box">
+                    <div class="value" id="statEta">--</div>
+                    <div class="label">ETA</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Live Log</h2>
+            <div class="log-container" id="logContainer"></div>
+        </div>
+
+        <div class="card">
+            <h2>Premium Hits</h2>
+            <div class="download-btns" style="margin-bottom: 20px;">
+                <button class="btn btn-secondary" onclick="downloadResults('json')">Download JSON</button>
+                <button class="btn btn-secondary" onclick="downloadResults('csv')">Download CSV</button>
+                <button class="btn btn-secondary" onclick="downloadResults('txt')">Download TXT</button>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="hits-table">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Plan</th>
+                            <th>Expiry</th>
+                            <th>Country</th>
+                            <th>Payment</th>
+                        </tr>
+                    </thead>
+                    <tbody id="hitsBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let eventSource = null;
+        let totalCombos = 0;
+
+        const comboFile = document.getElementById('comboFile');
+        const proxyFile = document.getElementById('proxyFile');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const statusBadge = document.getElementById('statusBadge');
+        const logContainer = document.getElementById('logContainer');
+
+        function addLog(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function setStatus(status) {
+            statusBadge.className = `status-badge ${status}`;
+            const text = statusBadge.querySelector('.text');
+            const dot = statusBadge.querySelector('.dot');
+            
+            if (status === 'running') {
+                text.textContent = 'Running';
+                dot.className = 'dot pulse';
+            } else if (status === 'stopped') {
+                text.textContent = 'Stopped';
+                dot.className = 'dot';
+            } else {
+                text.textContent = 'Idle';
+                dot.className = 'dot';
+            }
+        }
+
+        async function uploadFiles() {
+            const formData = new FormData();
+            
+            if (comboFile.files[0]) {
+                formData.append('combos', comboFile.files[0]);
+            }
+            if (proxyFile.files[0]) {
+                formData.append('proxies', proxyFile.files[0]);
+            }
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    totalCombos = data.combo_count;
+                    document.getElementById('comboInfo').textContent = `Loaded ${data.combo_count} combos`;
+                    document.getElementById('comboInfo').classList.remove('hidden');
+                    
+                    if (data.proxy_loaded) {
+                        document.getElementById('proxyInfo').textContent = 'Proxies loaded';
+                        document.getElementById('proxyInfo').classList.remove('hidden');
+                    }
+                    
+                    startBtn.disabled = false;
+                    addLog(`Uploaded ${data.combo_count} combos`, 'info');
+                } else {
+                    addLog(`Upload error: ${data.error}`, 'error');
+                }
+            } catch (e) {
+                addLog(`Upload failed: ${e.message}`, 'error');
+            }
+        }
+
+        comboFile.addEventListener('change', uploadFiles);
+        proxyFile.addEventListener('change', uploadFiles);
+
+        ['comboZone', 'proxyZone'].forEach(id => {
+            const zone = document.getElementById(id);
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                zone.classList.add('dragover');
+            });
+            zone.addEventListener('dragleave', () => {
+                zone.classList.remove('dragover');
+            });
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.classList.remove('dragover');
+                const input = zone.querySelector('input');
+                input.files = e.dataTransfer.files;
+                input.dispatchEvent(new Event('change'));
+            });
+        });
+
+        function connectEvents() {
+            if (eventSource) eventSource.close();
+            
+            eventSource = new EventSource('/events');
+            
+            eventSource.onmessage = (e) => {
+                const event = JSON.parse(e.data);
+                
+                if (event.type === 'ping') return;
+                
+                if (event.type === 'progress') {
+                    const d = event.data;
+                    document.getElementById('statChecked').textContent = d.checked;
+                    document.getElementById('statPremium').textContent = d.premium;
+                    document.getElementById('statFree').textContent = d.free;
+                    document.getElementById('statInvalid').textContent = d.invalid;
+                    document.getElementById('statCpm').textContent = Math.round(d.cpm);
+                    document.getElementById('statEta').textContent = d.eta;
+                    
+                    const pct = totalCombos > 0 ? (d.checked / totalCombos * 100) : 0;
+                    document.getElementById('progressFill').style.width = `${pct}%`;
+                }
+                else if (event.type === 'hit') {
+                    addLog(`HIT: ${event.data.email} - ${event.data.plan}`, 'hit');
+                    addHitToTable(event.data);
+                }
+                else if (event.type === 'free') {
+                    addLog(`FREE: ${event.data.email}`, 'free');
+                }
+                else if (event.type === 'invalid') {
+                    addLog(`INVALID: ${event.data.email}`, 'invalid');
+                }
+                else if (event.type === 'info') {
+                    addLog(event.data.message, 'info');
+                }
+                else if (event.type === 'error') {
+                    addLog(`ERROR: ${event.data.message}`, 'error');
+                }
+                else if (event.type === 'complete') {
+                    const d = event.data;
+                    addLog(`Complete! Premium: ${d.premium}, Free: ${d.free}, Invalid: ${d.invalid}`, 'info');
+                    setStatus('stopped');
+                    startBtn.classList.remove('hidden');
+                    stopBtn.classList.add('hidden');
+                    startBtn.disabled = false;
+                }
+            };
+            
+            eventSource.onerror = () => {
+                setTimeout(connectEvents, 3000);
+            };
+        }
+
+        function addHitToTable(hit) {
+            const tbody = document.getElementById('hitsBody');
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${hit.email || 'N/A'}</td>
+                <td>${hit.plan || 'N/A'}</td>
+                <td>${hit.expiry || 'N/A'}</td>
+                <td>${hit.country || 'N/A'}</td>
+                <td>${hit.payment || 'N/A'}</td>
+            `;
+            tbody.insertBefore(row, tbody.firstChild);
+        }
+
+        startBtn.addEventListener('click', async () => {
+            const mode = document.getElementById('mode').value;
+            const threads = parseInt(document.getElementById('threads').value);
+            const maxRetries = parseInt(document.getElementById('maxRetries').value);
+
+            try {
+                const response = await fetch('/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mode, threads, max_retries: maxRetries })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    setStatus('running');
+                    startBtn.classList.add('hidden');
+                    stopBtn.classList.remove('hidden');
+                    addLog('Checker started', 'info');
+                    connectEvents();
+                } else {
+                    addLog(`Start failed: ${data.error}`, 'error');
+                }
+            } catch (e) {
+                addLog(`Start error: ${e.message}`, 'error');
+            }
+        });
+
+        stopBtn.addEventListener('click', async () => {
+            try {
+                await fetch('/stop', { method: 'POST' });
+                addLog('Stop requested...', 'info');
+                stopBtn.disabled = true;
+            } catch (e) {
+                addLog(`Stop error: ${e.message}`, 'error');
+            }
+        });
+
+        function downloadResults(type) {
+            window.location.href = `/download/${type}`;
+        }
+
+        fetch('/status').then(r => r.json()).then(data => {
+            if (data.running) {
+                setStatus('running');
+                startBtn.classList.add('hidden');
+                stopBtn.classList.remove('hidden');
+                connectEvents();
+            }
+        });
+    </script>
+</body>
+</html>
